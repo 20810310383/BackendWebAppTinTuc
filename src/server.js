@@ -37,6 +37,7 @@ connectDB();
 // Cài đặt CORS
 const allowedOrigins = [
     'http://localhost:3070',     
+    'http://localhost:307',     
     'https://dantri24h.com',     
 ];
 const cookieParser = require('cookie-parser');
