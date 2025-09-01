@@ -15,6 +15,7 @@ const uploadVideo = require('./routes/uploadVideo');
 const wordRouter = require('./routes/word');
 const ipLogRouter = require('./routes/ipLogRouter');
 const aiSuggestRouter = require('./routes/aiSuggest');
+const tiktokRouter = require('./routes/tiktokRouter');
 const auth_Routes = require('./routes/auth.routes');
 
 const cors = require('cors');
@@ -37,8 +38,9 @@ connectDB();
 // Cài đặt CORS
 const allowedOrigins = [
     'http://localhost:3070',     
-    'http://localhost:307',     
-    'https://dantri24h.com',     
+    'https://dantri24h.com',  
+    'http://localhost:3010',     
+    'https://ktquiz.com'   
 ];
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
@@ -86,6 +88,8 @@ const routes = [
     { path: '/api/iplog', router: ipLogRouter },
     { path: '/api/chatgpt', router: aiSuggestRouter },
     { path: '/api/auth', router: auth_Routes },
+    // { path: '/api/media', router: tiktokRouter },
+    { path: '/api/tiktok', router: tiktokRouter },
 ];
   
 routes.forEach(route => app.use(route.path, route.router));
