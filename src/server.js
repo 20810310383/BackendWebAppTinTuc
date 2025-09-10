@@ -17,6 +17,7 @@ const ipLogRouter = require('./routes/ipLogRouter');
 const aiSuggestRouter = require('./routes/aiSuggest');
 const tiktokRouter = require('./routes/tiktokRouter');
 const imageRoutes = require('./routes/imageRoutes');
+const shortUrlRoutes  = require('./routes/shortUrlRoutes');
 const auth_Routes = require('./routes/auth.routes');
 
 const cors = require('cors');
@@ -24,7 +25,6 @@ const multer = require('multer');
 const path = require('path');
 const cron = require('node-cron');
 const moment = require('moment');
-const WebSocket = require('ws'); // Thêm thư viện WebSocket
 const cleanUploads = require('./utils/cleanUploads');
 
 require("dotenv").config();
@@ -90,12 +90,15 @@ const routes = [
     { path: '/api/iplog', router: ipLogRouter },
     { path: '/api/chatgpt', router: aiSuggestRouter },
     { path: '/api/auth', router: auth_Routes },
-    // { path: '/api/media', router: tiktokRouter },
     { path: '/api/tiktok', router: tiktokRouter },
     { path: '/api/images', router: imageRoutes },
+    { path: '/api/url', router: shortUrlRoutes  },
 ];
   
 routes.forEach(route => app.use(route.path, route.router));
+
+// Route public redirect (ngoài API)
+app.use("/s", shortUrlRoutes);
 
 // Sử dụng uploadRouter
 app.use("/api/upload", uploadRouter); // Đặt đường dẫn cho upload
