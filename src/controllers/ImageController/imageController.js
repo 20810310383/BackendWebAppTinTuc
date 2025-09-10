@@ -4,10 +4,10 @@ const axios = require("axios");
 const sharp = require("sharp");
 const FormData = require("form-data");
 
-// ⚡ Xoá nền (dùng remove.bg API)
+// ⚡ Xoá nền (remove.bg)
 const removeBg = async (req, res) => {
   try {
-    console.log("File nhận:", req.file);
+    console.log("📂 File nhận:", req.file);
 
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
@@ -19,31 +19,25 @@ const removeBg = async (req, res) => {
     formData.append("size", "auto");
 
     const response = await axios.post("https://api.remove.bg/v1.0/removebg", formData, {
-      headers: {
-        ...formData.getHeaders(),
-        "X-Api-Key": apiKey,
-      },
+      headers: { ...formData.getHeaders(), "X-Api-Key": apiKey },
       responseType: "arraybuffer",
     });
 
     const outputPath = path.join(__dirname, "../../public/uploads", `no-bg-${Date.now()}.png`);
     fs.writeFileSync(outputPath, response.data);
 
-    // xoá file gốc
+    // Xoá file gốc
     fs.unlinkSync(req.file.path);
 
-    // ✅ trả URL tuyệt đối (để app load đúng)
     return res.json({
       url: `/uploads/${path.basename(outputPath)}`,
       absoluteUrl: `https://backend.dantri24h.com/uploads/${path.basename(outputPath)}`
-    //   absoluteUrl: `${process.env.BASE_URL}/uploads/${path.basename(outputPath)}`
     });
   } catch (err) {
     console.error(err.response?.data?.toString() || err.message);
     return res.status(500).json({ error: "Failed to remove background" });
   }
 };
-
 
 // ⚡ Resize ảnh bằng Sharp
 const resizeImage = async (req, res) => {
@@ -53,18 +47,18 @@ const resizeImage = async (req, res) => {
     const width = parseInt(req.body.width) || 800;
     const height = parseInt(req.body.height) || null;
 
-    const outputPath = path.join("public/uploads", `resized-${Date.now()}.jpg`);
+    const outputPath = path.join(__dirname, "../../public/uploads", `resized-${Date.now()}.jpg`);
 
     await sharp(req.file.path)
       .resize(width, height)
       .jpeg({ quality: 80 })
       .toFile(outputPath);
 
-    // Xoá file gốc
     fs.unlinkSync(req.file.path);
 
     return res.json({
       url: `/uploads/${path.basename(outputPath)}`,
+      absoluteUrl: `https://backend.dantri24h.com/uploads/${path.basename(outputPath)}`
     });
   } catch (err) {
     console.error(err);
