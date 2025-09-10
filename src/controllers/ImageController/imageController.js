@@ -23,7 +23,7 @@ const removeBg = async (req, res) => {
       responseType: "arraybuffer",
     });
 
-    const outputPath = path.join(__dirname, "../../public/uploads", `no-bg-${Date.now()}.png`);
+    const outputPath = path.join(__dirname, "../public/uploads", `no-bg-${Date.now()}.png`);
     fs.writeFileSync(outputPath, response.data);
 
     // Xoá file gốc
@@ -47,7 +47,7 @@ const resizeImage = async (req, res) => {
     const width = parseInt(req.body.width) || 800;
     const height = parseInt(req.body.height) || null;
 
-    const outputPath = path.join(__dirname, "../../public/uploads", `resized-${Date.now()}.jpg`);
+    const outputPath = path.join(__dirname, "../public/uploads", `resized-${Date.now()}.jpg`);
 
     await sharp(req.file.path)
       .resize(width, height)
