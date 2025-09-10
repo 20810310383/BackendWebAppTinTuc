@@ -8,7 +8,7 @@ const fs = require("fs");   // 👈 thêm dòng này
 // Lưu file tạm vào public/uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "../../public/uploads");
+    const uploadPath = path.join(__dirname, "../public/uploads");
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true }); // tạo nếu chưa có
     }
