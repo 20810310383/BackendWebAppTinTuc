@@ -6,18 +6,19 @@ const Tesseract = require("tesseract.js");
 // ⚡ OCR: convert ảnh ra text
 const imageToText = async (req, res) => {
   try {
+    console.log("📂 File nhận:", req.file);
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const imagePath = req.file.path;
 
-    const { data } = await Tesseract.recognize(imagePath, "eng+vie", {
-      logger: (m) => console.log(m), // log tiến trình OCR
+    const { data: { text } } = await Tesseract.recognize(imagePath, "eng+vie", {
+      logger: (m) => console.log(m), // log progress
     });
 
-    // không xoá file gốc để user có thể xem lại
-    return res.json({
-      text: data.text,
-    });
+    // xoá file tạm
+    fs.unlinkSync(imagePath);
+
+    return res.json({ text });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "OCR failed" });
