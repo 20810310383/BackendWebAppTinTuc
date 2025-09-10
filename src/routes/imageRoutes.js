@@ -2,10 +2,10 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const { removeBg, resizeImage } = require("../controllers/ImageController/imageController");
-const fs = require("fs");   // 👈 thêm dòng này
 
-// Lưu file tạm vào public/uploads
+// Lưu file tạm vào src/public/uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, "../public/uploads");
