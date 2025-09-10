@@ -4,6 +4,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { removeBg, resizeImage } = require("../controllers/ImageController/imageController");
+const { convertImage } = require("../controllers/ImageController/convertController");
+const { imageToText } = require("../controllers/ImageController/ocrController");
 
 // Lưu file tạm vào src/public/uploads
 const storage = multer.diskStorage({
@@ -25,5 +27,11 @@ const upload = multer({ storage });
 // Routes
 router.post("/remove-bg", upload.single("image"), removeBg);
 router.post("/resize", upload.single("image"), resizeImage);
+
+// ⚡ API convert ảnh sang định dạng khác
+router.post("/convert", upload.single("image"), convertImage);
+
+// ⚡ API OCR (ảnh → text)
+router.post("/ocr", upload.single("image"), imageToText);
 
 module.exports = router;
