@@ -1,0 +1,164 @@
+1. SSH vào VPS
+ssh root@11.123.456.78
+# nhập password: 123
+------------------------
+2. Tạo file deploy.sh (có sẵn nội dung để dán)
+nano deploy.sh
+# dán nội dung script -> Ctrl+O, Enter để lưu -> Ctrl+X để thoát
+------------------------
+3. NỘI DUNG deploy.sh (đã tối ưu cho Mongo Atlas + PM2 + Nginx)
+-------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+set -e
+
+# ==============================
+# Config
+# ==============================
+APP_NAME="tintuc"
+APP_PORT=8069
+APP_DIR="/var/www/$APP_NAME"
+REPO_URL="https://github.com/20810310383/BackendWebAppTinTuc.git"
+DOMAIN="backend.dantri24h.com"
+
+echo "===== UPDATE VPS ====="
+sudo apt update -y && sudo apt upgrade -y
+
+echo "===== INSTALL DEPENDENCIES ====="
+sudo apt install -y curl git nginx ufw
+
+echo "===== INSTALL NODEJS + PM2 ====="
+if ! command -v node >/dev/null 2>&1; then
+  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  sudo apt install -y nodejs build-essential
+fi
+sudo npm install -g pm2
+
+echo "===== CLONE OR PULL GIT ====="
+if [ -d "$APP_DIR/.git" ]; then
+  cd "$APP_DIR"
+  git pull origin main
+else
+  sudo mkdir -p "$APP_DIR"
+  sudo chown $USER:$USER "$APP_DIR"
+  git clone "$REPO_URL" "$APP_DIR"
+  cd "$APP_DIR"
+fi
+
+echo "===== INSTALL NODE MODULES ====="
+npm install
+
+echo "===== CREATE .ENV (Mongo Atlas) ====="
+cat > .env <<EOL
+PORT=8069
+HOST_NAME=0.0.0.0
+DB_HOST="mongodb+srv://WebAppTinTuc:yZKS0LQ9i98Hvd8d@webapptintuc.eibvucg.mongodb.net/WebAppTinTuc"
+DB_USER=WebAppTinTuc
+DB_PASSWORD=yZKS0LQ9i98Hvd8d
+DB_NAME=WebAppTinTuc
+MONGODB_URI='mongodb+srv://WebAppTinTuc:yZKS0LQ9i98Hvd8d@webapptintuc.eibvucg.mongodb.net/WebAppTinTuc'
+
+NODE_ENV=production
+JWT_ACCESS_SECRET=6d7c9f19f2b847d9a6f35f9b8c12a4e2a3b5c6d8f0a1b2c3d4e5f6a7b8c9d0e1
+JWT_REFRESH_SECRET=b3d5f7a9c1e2d3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8
+ACCESS_TOKEN_EXPIRES=30s
+REFRESH_TOKEN_EXPIRES=7d
+COOKIE_DOMAIN=dantri24h.com
+
+EMAIL_USER=checkfb9999@gmail.com 
+EMAIL_PASS=fufzgdridpmjhigt
+SEPAY_API_KEY=bee_book_api_key
+
+CLOUDINARY_CLOUD_NAME=dume8oer7
+CLOUDINARY_API_KEY=259251551938498
+CLOUDINARY_API_SECRET=oKnqPWmZhIKz3L66jF36yecd9_8
+
+GG_CLIENT_ID=575924817632-shakja7clpfafgun8dh9qiegfk3k5krc.apps.googleusercontent.com
+GG_CLIENT_SECRET=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
+
+OPENAI_API_KEY=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
+WEBHOOK_SECRET=your_webhook_secret
+EOL
+
+echo "===== START WITH PM2 ====="
+if [ -f ecosystem.config.js ]; then
+  pm2 start ecosystem.config.js --env production || pm2 restart "$APP_NAME"
+else
+  # fallback nếu repo không có ecosystem.config.js
+  pm2 start src/server.js --name "$APP_NAME"
+fi
+pm2 save
+pm2 startup systemd -u $USER --hp $HOME >/dev/null 2>&1 || true
+
+echo "===== CONFIGURE NGINX ====="
+NGINX_CONF="/etc/nginx/sites-available/$APP_NAME"
+sudo tee $NGINX_CONF > /dev/null <<EOF
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $DOMAIN;
+
+    location / {
+        proxy_pass http://localhost:$APP_PORT;
+        proxy_http_version 1.1;
+        proxy_read_timeout 36000s;
+
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+
+# Tắt default site để tránh conflict
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf $NGINX_CONF /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+echo "===== CONFIGURE FIREWALL (UFW) ====="
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw --force enable
+
+echo "===== DONE! ====="
+echo "PM2 apps:"
+pm2 list
+echo "HTTP:  http://$DOMAIN"
+echo "Nếu chưa trỏ domain, tạm test: http://127.0.0.1:$APP_PORT (từ VPS) hoặc http://SERVER_IP:$APP_PORT (từ ngoài)"
+-------------------------------------------------------------------------------------------------------------------------------------------
+4. Chạy script
+chmod +x deploy.sh
+./deploy.sh
+
+Kiểm tra:
+
+pm2 list
+pm2 logs --lines 100
+
+Nếu cần sửa ENV sau này:
+
+cd /var/www/tintuc
+nano .env
+pm2 restart tintuc
+----------------
+5. Trỏ domain về VPS (làm trên inet như bthg)
+6. Cấp SSL (HTTPS) cho domain (khuyên dùng)
+----------
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d backend.dantri24h.com
+# nhập email, đồng ý điều khoản, chọn redirect -> xong
+----------
+7. Lệnh cập nhật nhanh lần sau (pull code + restart)
+----------
+echo "alias deploy-tintuc='cd /var/www/tintuc && git pull origin main && npm install && pm2 restart tintuc && pm2 save'" >> ~/.bashrc
+source ~/.bashrc
+# Từ đây, mỗi lần bạn push code mới lên GitHub, vào VPS chỉ cần:
+deploy-tintuc
+
+👉 Làm vậy thì bất kỳ IP nào cũng SSH được, không còn phụ thuộc vào IP mạng của bạn nữa.
+ufw allow 22/tcp
+ufw reload
