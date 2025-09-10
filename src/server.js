@@ -100,10 +100,10 @@ routes.forEach(route => app.use(route.path, route.router));
 app.use("/api/upload", uploadRouter); // Đặt đường dẫn cho upload
 
 // Lịch cron: "*/5 * * * *" = 5 phút 1 lần
-cron.schedule("*/5 * * * *", () => {
-  console.log("🧹 Đang dọn thư mục uploads...");
-  cleanUploads();
-});
+// cron.schedule("*/5 * * * *", () => {
+//   console.log("🧹 Đang dọn thư mục uploads...");
+//   cleanUploads();
+// });
 
 app.listen(port, () => {
     console.log("backend nodejs is running on the port:", port, `\n http://localhost:${port}`);
