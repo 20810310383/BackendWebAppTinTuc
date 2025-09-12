@@ -36,7 +36,8 @@ exports.markAsRead = async (req, res) => {
 
 exports.updateThongBao = async (req, res) => {
   try {
-    const { id, title, message } = req.body;
+    const { title, message } = req.body;
+    const { id } = req.params;
     const tb = await ThongBao.findByIdAndUpdate(id, { title, message });
     res.json({ success: true, data: tb });
   } catch (err) {
