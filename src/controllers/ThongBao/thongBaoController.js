@@ -34,6 +34,16 @@ exports.markAsRead = async (req, res) => {
   }
 };
 
+exports.updateThongBao = async (req, res) => {
+  try {
+    const { id, title, message } = req.body;
+    const tb = await ThongBao.findByIdAndUpdate(id, { title, message });
+    res.json({ success: true, data: tb });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 // Xóa thông báo
 exports.deleteThongBao = async (req, res) => {
   try {
