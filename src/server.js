@@ -18,6 +18,7 @@ const aiSuggestRouter = require('./routes/aiSuggest');
 const tiktokRouter = require('./routes/tiktokRouter');
 const imageRoutes = require('./routes/imageRoutes');
 const shortUrlRoutes  = require('./routes/shortUrlRoutes');
+const thongBaoRoutes  = require('./routes/thongBaoRoutes');
 const auth_Routes = require('./routes/auth.routes');
 
 const cors = require('cors');
@@ -93,6 +94,7 @@ const routes = [
     { path: '/api/tiktok', router: tiktokRouter },
     { path: '/api/images', router: imageRoutes },
     { path: '/api/url', router: shortUrlRoutes  },
+    { path: '/api/thongbao', router: thongBaoRoutes  },
 ];
   
 routes.forEach(route => app.use(route.path, route.router));
