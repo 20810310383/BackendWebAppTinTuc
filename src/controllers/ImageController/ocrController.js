@@ -1,4 +1,5 @@
 // controllers/ImageController/ocrController.js
+const { default: axios } = require("axios");
 const fs = require("fs");
 const path = require("path");
 const Tesseract = require("tesseract.js");
