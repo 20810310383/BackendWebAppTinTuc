@@ -3,6 +3,12 @@ const { default: axios } = require("axios");
 const fs = require("fs");
 const path = require("path");
 const Tesseract = require("tesseract.js");
+const OpenAI = require("openai");
+
+// Tạo client OpenAI với API Key từ .env
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // ⚡ OCR: convert ảnh ra text
 const imageToText = async (req, res) => {
@@ -26,17 +32,49 @@ const imageToText = async (req, res) => {
   }
 };
 
-// ⚡ 1. AI giải đề (demo)
+// ⚡ 1. AI giải đề
 const solveByAI = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
+
+    // OCR: chuyển ảnh → text
     const { data: { text } } = await Tesseract.recognize(req.file.path, "eng+vie");
 
-    // TODO: gọi OpenAI API / AI Solver
+    const cleanText = text.trim();
+
+    // Gọi OpenAI GPT để giải đề
+    const response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+            {
+            role: "system",
+            content: `Bạn là một trợ lý học tập thông minh, có khả năng giải và giải thích chi tiết các bài tập thuộc nhiều môn học như Toán, Vật lý, Hóa học, Sinh học, Ngữ văn, Lịch sử, Địa lý, Tiếng Anh và các môn khác.
+            
+            Nhiệm vụ của bạn:
+            - Đưa ra lời giải rõ ràng, dễ hiểu.
+            - Với môn tự nhiên (Toán, Lý, Hóa, Sinh): hãy giải từng bước, ghi chú công thức và kết quả cuối.
+            - Với môn xã hội (Văn, Sử, Địa): hãy phân tích, tóm tắt và đưa ra câu trả lời súc tích nhưng đầy đủ ý.
+            - Với tiếng Anh: có thể dịch, giải thích ngữ pháp và đưa ví dụ minh họa.
+            
+            Luôn trả lời bằng tiếng Việt, trình bày khoa học, gọn gàng và chính xác.`,
+            },
+            {
+            role: "user",
+            content: cleanText, // chính là đề bài OCR được
+            },
+        ],
+        max_tokens: 1200,
+    });
+
+    const solution = response.choices[0].message.content;
+
+    // Xoá file tạm sau khi xử lý
+    fs.unlinkSync(req.file.path);
+
     return res.json({
       mode: "AI",
-      input: text.trim(),
-      solution: `👉 Đây là kết quả giả lập của AI cho đề: ${text.trim()}`
+      input: cleanText,
+      solution,
     });
   } catch (err) {
     console.error("❌ AI Solve error:", err);
