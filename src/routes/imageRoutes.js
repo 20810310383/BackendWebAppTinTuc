@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const { removeBg, resizeImage } = require("../controllers/ImageController/imageController");
 const { convertImage } = require("../controllers/ImageController/convertController");
-const { imageToText } = require("../controllers/ImageController/ocrController");
+const { imageToText, solveByAI, solveByGoogle } = require("../controllers/ImageController/ocrController");
 
 // Lưu file tạm vào src/public/uploads
 const storage = multer.diskStorage({
@@ -33,5 +33,9 @@ router.post("/convert", upload.single("image"), convertImage);
 
 // ⚡ API OCR (ảnh → text)
 router.post("/ocr", upload.single("image"), imageToText);
+
+// Các route mới cho giải đề
+router.post("/solve-ai", upload.single("image"), solveByAI);
+router.post("/solve-search", upload.single("image"), solveByGoogle);
 
 module.exports = router;
