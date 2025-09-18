@@ -8,7 +8,10 @@
     "start": "nodemon --exec ./node_modules/.bin/babel-node src/server.js",
     "build-src": "babel src -d build --copy-files",
     "build": "node build/server.js",
-    "prod": "pm2 start build/server.js"
+    "prod": "pm2 start build/server.js",
+    "start:api": "node src/server.js",
+    "start:chat": "node src/chatServer.js",
+    "start:all": "pm2 start src/server.js --name api && pm2 start src/chatServer.js --name chat"
   },
   "author": "",
   "license": "ISC",
@@ -52,6 +55,7 @@
     "rootpath": "^0.1.2",
     "sanitize-filename": "^1.6.3",
     "sharp": "^0.34.3",
+    "socket.io": "^4.8.1",
     "tesseract.js": "^6.0.1",
     "vnpay": "^1.6.1",
     "ws": "^8.18.0",

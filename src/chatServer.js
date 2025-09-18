@@ -1,76 +1,86 @@
-// chatServer.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const mongoose = require("mongoose");
+const cors = require("cors");
 require("dotenv").config();
 
+// Routers
+const conversationRouter = require("./routes/conversationRouter");
+const messageRouter = require("./routes/messageRouter");
+
 const app = express();
-const server = http.createServer(app);
+app.use(cors());
+app.use(express.json());
 
-// Khởi tạo socket.io
-const io = new Server(server, {
-  cors: {
-    origin: "*", // cho phép client kết nối (React/React Native)
-    methods: ["GET", "POST"],
-  },
-});
+const mongoUri = process.env.MONGODB_URI;
 
-// Kết nối MongoDB
-mongoose.connect(process.env.MONGO_URL, {
+// MongoDB
+mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
 
-// Model người dùng
-const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  avatar: String,
-});
-const User = mongoose.model("User", UserSchema);
+// API
+app.use("/api/conversations", conversationRouter);
+app.use("/api/messages", messageRouter);
 
-// Model chat (giữa A và B)
-const MessageSchema = new mongoose.Schema(
-  {
-    sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    receiver: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    content: String,
-    seen: { type: Boolean, default: false },
+const server = http.createServer(app);
+
+// SocketIO
+const io = new Server(server, {
+  cors: {
+    origin: "*",
   },
-  { timestamps: true }
-);
-const Message = mongoose.model("Message", MessageSchema);
+});
 
-// Socket.io events
+let users = [];
+
+// add user online
+const addUser = (userId, socketId) => {
+  if (!users.some((u) => u.userId === userId)) {
+    users.push({ userId, socketId });
+  }
+};
+
+// remove user offline
+const removeUser = (socketId) => {
+  users = users.filter((u) => u.socketId !== socketId);
+};
+
+// get user by id
+const getUser = (userId) => users.find((u) => u.userId === userId);
+
+// socket logic
 io.on("connection", (socket) => {
-  console.log("🔗 User connected:", socket.id);
+  console.log("a user connected:", socket.id);
 
-  // Tham gia vào room riêng theo userId
-  socket.on("join", (userId) => {
-    socket.join(userId);
-    console.log(`✅ User ${userId} joined their room`);
+  // khi user login
+  socket.on("addUser", (userId) => {
+    addUser(userId, socket.id);
+    io.emit("getUsers", users);
   });
 
-  // Nhận tin nhắn
-  socket.on("sendMessage", async ({ senderId, receiverId, content }) => {
-    const message = new Message({ sender: senderId, receiver: receiverId, content });
-    await message.save();
-
-    // Gửi lại cho cả sender + receiver
-    io.to(senderId).emit("newMessage", message);
-    io.to(receiverId).emit("newMessage", message);
+  // khi gửi message
+  socket.on("sendMessage", ({ senderId, receiverId, text }) => {
+    const user = getUser(receiverId);
+    if (user) {
+      io.to(user.socketId).emit("getMessage", {
+        senderId,
+        text,
+        createdAt: new Date(),
+      });
+    }
   });
 
-  // Đánh dấu đã xem
-  socket.on("markAsSeen", async (messageId) => {
-    await Message.findByIdAndUpdate(messageId, { seen: true });
-  });
-
+  // disconnect
   socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
+    console.log("user disconnected:", socket.id);
+    removeUser(socket.id);
+    io.emit("getUsers", users);
   });
 });
 
-server.listen(8070, () => {
-  console.log("🚀 Chat server running on port 8070");
+server.listen(5000, () => {
+  console.log("Server running on port 5000");
 });
