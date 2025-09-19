@@ -10,7 +10,7 @@ function convertWithLibre(inputPath, outputExt, res) {
   const file = fs.readFileSync(inputPath);
 
   libre.convert(file, outputExt, undefined, (err, done) => {
-    // Xóa file gốc an toàn
+    // Xóa file gốc
     try {
       if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     } catch (e) {
@@ -25,17 +25,27 @@ function convertWithLibre(inputPath, outputExt, res) {
     // Lưu file kết quả
     fs.writeFileSync(outputPath, done);
 
-    // Trả file cho client và xóa sau khi tải xong
-    res.download(outputPath, outputFileName, (err) => {
+    // Set header thủ công
+    const mime =
+      outputExt === ".pdf"
+        ? "application/pdf"
+        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Content-Disposition", `attachment; filename="${outputFileName}"`);
+    res.sendFile(outputPath, (err) => {
+      if (err) console.error("❌ Send file error:", err);
+
+      // Xóa file sau khi gửi
       try {
         if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
       } catch (e) {
         console.warn("⚠️ Cannot remove output file:", e.message);
       }
-      if (err) console.error("❌ Download error:", err);
     });
   });
 }
+
 
 // Route đa năng: /api/convert?to=pdf|docx|xlsx|pptx...
 exports.convertFile = (req, res) => {
