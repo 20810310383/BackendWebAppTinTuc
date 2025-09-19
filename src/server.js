@@ -9,7 +9,6 @@ const uploadRouter = require('./routes/uploadRouter');
 const uploadAudio = require('./routes/uploadAudio');
 const uploadVideo = require('./routes/uploadVideo');
 const wordRouter = require('./routes/word');
-const ipLogRouter = require('./routes/ipLogRouter');
 const aiSuggestRouter = require('./routes/aiSuggest');
 const tiktokRouter = require('./routes/tiktokRouter');
 const imageRoutes = require('./routes/imageRoutes');
@@ -76,7 +75,6 @@ const routes = [
     { path: '/api/audio', router: uploadAudio },
     { path: '/api/video', router: uploadVideo },
     { path: '/api/word', router: wordRouter },
-    { path: '/api/iplog', router: ipLogRouter },
     { path: '/api/chatgpt', router: aiSuggestRouter },
     { path: '/api/auth', router: auth_Routes },
     { path: '/api/tiktok', router: tiktokRouter },
@@ -95,10 +93,10 @@ app.use("/s", shortUrlRoutes);
 app.use("/api/upload", uploadRouter); // Đặt đường dẫn cho upload
 
 // Lịch cron: "*/5 * * * *" = 5 phút 1 lần
-cron.schedule("*/10 * * * *", () => {
-  console.log("🧹 Đang dọn thư mục uploads...");
-  cleanUploads();
-});
+// cron.schedule("*/10 * * * *", () => {
+//   console.log("🧹 Đang dọn thư mục uploads...");
+//   cleanUploads();
+// });
 
 app.listen(port, () => {
     console.log("backend nodejs is running on the port:", port, `\n http://localhost:${port}`);
