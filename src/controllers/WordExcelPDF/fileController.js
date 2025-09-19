@@ -4,19 +4,36 @@ const libre = require("libreoffice-convert");
 
 // Hàm convert chung
 function convertWithLibre(inputPath, outputExt, res) {
-  const outputPath = path.join(__dirname, "../../public/uploads", Date.now() + outputExt);
+  const outputFileName = Date.now() + outputExt;
+  const outputPath = path.resolve(__dirname, "../../public/uploads", outputFileName);
+
   const file = fs.readFileSync(inputPath);
 
   libre.convert(file, outputExt, undefined, (err, done) => {
-    fs.unlinkSync(inputPath); // xoá file gốc sau khi convert
+    // Xóa file gốc an toàn
+    try {
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+    } catch (e) {
+      console.warn("⚠️ Cannot remove input file:", e.message);
+    }
 
     if (err) {
       console.error("❌ Conversion error:", err);
       return res.status(500).json({ error: "Conversion failed" });
     }
 
+    // Lưu file kết quả
     fs.writeFileSync(outputPath, done);
-    res.download(outputPath, () => fs.unlinkSync(outputPath)); // tải xong xoá
+
+    // Trả file cho client và xóa sau khi tải xong
+    res.download(outputPath, outputFileName, (err) => {
+      try {
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      } catch (e) {
+        console.warn("⚠️ Cannot remove output file:", e.message);
+      }
+      if (err) console.error("❌ Download error:", err);
+    });
   });
 }
 

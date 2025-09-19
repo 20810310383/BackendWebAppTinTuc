@@ -58,8 +58,8 @@ app.set('trust proxy', true); // BẮT BUỘC nếu dùng nginx hoặc VPS
 
 
 // Config bodyParser
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
+app.use(bodyParser.json({ limit: "100mb" }));
+app.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
 
 // Đặt thư mục public/uploads làm public để có thể truy cập
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
@@ -91,6 +91,15 @@ app.use("/s", shortUrlRoutes);
 
 // Sử dụng uploadRouter
 app.use("/api/upload", uploadRouter); // Đặt đường dẫn cho upload
+
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: err.message });
+  } else if (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  next();
+});
 
 // Lịch cron: "*/5 * * * *" = 5 phút 1 lần
 // cron.schedule("*/10 * * * *", () => {

@@ -20,9 +20,22 @@ const storage = multer.diskStorage({
   },
 });
 
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"
+  ];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowedTypes.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error("File type not allowed"), false);
+  }
+};
+
 const upload = multer({ 
     storage,
-    limits: { fileSize: 50 * 1024 * 1024 },
+    limits: { fileSize: 100 * 1024 * 1024 },
+    fileFilter
  });
 
 // Route đa năng
