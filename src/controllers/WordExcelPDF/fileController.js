@@ -1,8 +1,10 @@
+// src/controllers/convertFile.js
 const fs = require("fs");
 const path = require("path");
 const libre = require("libreoffice-convert");
+const { exec } = require("child_process");
 
-// Hàm convert chung
+// 📌 Hàm dùng libreoffice-convert (Word -> PDF, Excel -> PDF...)
 function convertWithLibre(req, res, inputPath, outputExt) {
   const outputFileName = Date.now() + outputExt;
   const outputPath = path.resolve(__dirname, "../../public/uploads", outputFileName);
@@ -10,7 +12,7 @@ function convertWithLibre(req, res, inputPath, outputExt) {
   const file = fs.readFileSync(inputPath);
 
   libre.convert(file, outputExt, undefined, (err, done) => {
-    // Xóa file gốc
+    // Xoá file gốc
     try {
       if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     } catch (e) {
@@ -25,9 +27,8 @@ function convertWithLibre(req, res, inputPath, outputExt) {
     // Lưu file kết quả
     fs.writeFileSync(outputPath, done);
 
-    // Sinh URL động theo host khi gọi API
+    // URL cho client
     const fileUrl = `https://backend.dantri24h.com/uploads/${outputFileName}`;
-
     res.json({
       success: true,
       url: fileUrl,
@@ -36,46 +37,30 @@ function convertWithLibre(req, res, inputPath, outputExt) {
   });
 }
 
-// Route đa năng: /api/convert?to=pdf|docx|xlsx|pptx...
-exports.convertFile = (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  const targetExt = req.query.to ? "." + req.query.to : ".pdf";
-  convertWithLibre(req, res, req.file.path, targetExt);
-};
-
-// Word -> PDF
-exports.wordToPdf = (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  convertWithLibre(req, res, req.file.path, ".pdf");
-};
-
-// PDF -> Word 
-const { exec } = require("child_process");
-exports.pdfToWord = (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-
-  console.log("📥 PDF input:", req.file.path);
-
-  const inputPath = req.file.path;
+// 📌 Hàm dùng soffice trực tiếp (PDF -> Word)
+function convertPdfToDocx(req, res, inputPath) {
   const outputFileName = Date.now() + ".docx";
-  const outputPath = path.resolve(__dirname, "../../public/uploads", outputFileName);
+  const outputDir = path.resolve(__dirname, "../../public/uploads");
+  const outputPath = path.join(outputDir, outputFileName);
 
-  const pdfBuffer = fs.readFileSync(inputPath);
+  console.log("📥 PDF input:", inputPath);
 
-  // ép filter khi convert từ PDF → DOCX
-  libre.convert(pdfBuffer, "docx", { filter: "writer_pdf_import" }, (err, done) => {
+  const command = `soffice --headless --infilter="writer_pdf_import" --convert-to docx:"MS Word 2007 XML" "${inputPath}" --outdir "${outputDir}"`;
+
+  exec(command, (err, stdout, stderr) => {
+    // Xoá file gốc
     try {
-      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); // xoá file gốc
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     } catch (e) {
       console.warn("⚠️ Cannot remove input file:", e.message);
     }
 
     if (err) {
-      console.error("❌ PDF -> DOCX error:", err);
-      return res.status(500).json({ error: "PDF to Word failed" });
+      console.error("❌ PDF -> DOCX error:", stderr || err.message);
+      return res.status(500).json({ error: "PDF to DOCX failed" });
     }
 
-    fs.writeFileSync(outputPath, done);
+    console.log("✅ LibreOffice output:", stdout);
 
     const fileUrl = `https://backend.dantri24h.com/uploads/${outputFileName}`;
     res.json({
@@ -84,5 +69,30 @@ exports.pdfToWord = (req, res) => {
       name: outputFileName,
     });
   });
+}
+
+// 📌 Route đa năng: /api/convert?to=pdf|docx|xlsx|pptx...
+exports.convertFile = (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  const targetExt = req.query.to ? "." + req.query.to : ".pdf";
+
+  if (targetExt === ".docx" && req.file.originalname.endsWith(".pdf")) {
+    // Nếu là PDF -> DOCX
+    return convertPdfToDocx(req, res, req.file.path);
+  }
+
+  // Các trường hợp khác
+  convertWithLibre(req, res, req.file.path, targetExt);
 };
 
+// 📌 Word -> PDF
+exports.wordToPdf = (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  convertWithLibre(req, res, req.file.path, ".pdf");
+};
+
+// 📌 PDF -> Word
+exports.pdfToWord = (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  convertPdfToDocx(req, res, req.file.path);
+};
