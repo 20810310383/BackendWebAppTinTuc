@@ -22,6 +22,9 @@ function convertWithLibre(inputPath, outputExt, res) {
       return res.status(500).json({ error: "Conversion failed" });
     }
 
+    console.log("✅ Buffer size:", done.length); // log ra dung lượng file
+
+
     // Lưu file kết quả
     fs.writeFileSync(outputPath, done);
 
