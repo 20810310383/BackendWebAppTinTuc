@@ -64,7 +64,7 @@ exports.pdfToWord = (req, res) => {
 
   // Step 1: PDF -> ODT
   libre.convert(pdfBuffer, ".odt", undefined, (err, odtBuffer) => {
-    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); // xoá file gốc
+    // if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); // xoá file gốc
     if (err) {
       console.error("❌ PDF -> ODT error:", err);
       return res.status(500).json({ error: "PDF to ODT failed" });
