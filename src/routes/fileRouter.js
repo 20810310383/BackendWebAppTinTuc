@@ -2,7 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const { convertFile, wordToPdf, pdfToWord } = require("../controllers/WordExcelPDF/fileController");
 const router = express.Router();
-
+const path = require('path');
 // Lưu file tạm vào src/public/uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
