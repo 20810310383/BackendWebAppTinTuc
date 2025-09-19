@@ -52,5 +52,6 @@ exports.wordToPdf = (req, res) => {
 // PDF -> Word
 exports.pdfToWord = (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  console.log("📥 PDF input:", req.file.path);
   convertWithLibre(req, res, req.file.path, ".docx");
 };
