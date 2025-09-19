@@ -39,8 +39,11 @@ function convertWithLibre(req, res, inputPath, outputExt) {
 
 // 📌 Hàm dùng soffice trực tiếp (PDF -> Word)
 function convertPdfToDocx(req, res, inputPath) {
-  const outputFileName = Date.now() + ".docx";
   const outputDir = path.resolve(__dirname, "../../public/uploads");
+  const tempName = path.basename(inputPath, ".pdf") + ".docx"; // file docx mà soffice sẽ tạo
+  const tempPath = path.join(outputDir, tempName);
+
+  const outputFileName = Date.now() + ".docx";
   const outputPath = path.join(outputDir, outputFileName);
 
   console.log("📥 PDF input:", inputPath);
@@ -48,7 +51,7 @@ function convertPdfToDocx(req, res, inputPath) {
   const command = `soffice --headless --infilter="writer_pdf_import" --convert-to docx:"MS Word 2007 XML" "${inputPath}" --outdir "${outputDir}"`;
 
   exec(command, (err, stdout, stderr) => {
-    // Xoá file gốc
+    // Xoá file gốc PDF
     try {
       if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     } catch (e) {
@@ -62,6 +65,15 @@ function convertPdfToDocx(req, res, inputPath) {
 
     console.log("✅ LibreOffice output:", stdout);
 
+    // Đổi tên file thành output chuẩn
+    try {
+      if (fs.existsSync(tempPath)) {
+        fs.renameSync(tempPath, outputPath);
+      }
+    } catch (e) {
+      console.error("⚠️ Rename failed:", e.message);
+    }
+
     const fileUrl = `https://backend.dantri24h.com/uploads/${outputFileName}`;
     res.json({
       success: true,
@@ -70,6 +82,7 @@ function convertPdfToDocx(req, res, inputPath) {
     });
   });
 }
+
 
 // 📌 Route đa năng: /api/convert?to=pdf|docx|xlsx|pptx...
 exports.convertFile = (req, res) => {
