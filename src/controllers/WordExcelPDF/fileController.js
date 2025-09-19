@@ -49,35 +49,34 @@ exports.wordToPdf = (req, res) => {
   convertWithLibre(req, res, req.file.path, ".pdf");
 };
 
-// PDF -> Word (workaround: PDF -> ODT -> DOCX)
+// PDF -> Word 
 const { exec } = require("child_process");
 exports.pdfToWord = (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-  const inputPath = req.file.path; // file pdf vừa upload
+  console.log("📥 PDF input:", req.file.path);
+
+  const inputPath = req.file.path;
   const outputFileName = Date.now() + ".docx";
-  const outputDir = path.resolve(__dirname, "../../public/uploads");
-  const outputPath = path.join(outputDir, outputFileName);
+  const outputPath = path.resolve(__dirname, "../../public/uploads", outputFileName);
 
-  // Lệnh CLI để convert PDF -> DOCX
-  const cmd = `soffice --headless --infilter="writer_pdf_import" --convert-to docx:"MS Word 2007 XML" "${inputPath}" --outdir "${outputDir}"`;
+  const pdfBuffer = fs.readFileSync(inputPath);
 
-  exec(cmd, (error, stdout, stderr) => {
-    // Xoá file PDF gốc
+  // ép filter khi convert từ PDF → DOCX
+  libre.convert(pdfBuffer, "docx", { filter: "writer_pdf_import" }, (err, done) => {
     try {
-      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); // xoá file gốc
     } catch (e) {
       console.warn("⚠️ Cannot remove input file:", e.message);
     }
 
-    if (error) {
-      console.error("❌ Conversion error:", stderr || error.message);
-      return res.status(500).json({ error: "PDF to DOCX failed" });
+    if (err) {
+      console.error("❌ PDF -> DOCX error:", err);
+      return res.status(500).json({ error: "PDF to Word failed" });
     }
 
-    console.log("✅ Convert OK:", stdout);
+    fs.writeFileSync(outputPath, done);
 
-    // Trả URL cho client
     const fileUrl = `https://backend.dantri24h.com/uploads/${outputFileName}`;
     res.json({
       success: true,
