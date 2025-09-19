@@ -26,7 +26,7 @@ function convertWithLibre(req, res, inputPath, outputExt) {
     fs.writeFileSync(outputPath, done);
 
     // Sinh URL động theo host khi gọi API
-    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${outputFileName}`;
+    const fileUrl = `https://backend.dantri24h.com/uploads/${outputFileName}`;
 
     res.json({
       success: true,
