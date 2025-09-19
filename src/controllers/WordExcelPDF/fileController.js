@@ -53,22 +53,28 @@ exports.wordToPdf = (req, res) => {
 exports.pdfToWord = (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
+  console.log("📥 PDF input:", req.file.path);
+
   const inputPath = req.file.path;
   const outputFileName = Date.now() + ".docx";
   const outputPath = path.resolve(__dirname, "../../public/uploads", outputFileName);
 
-  const file = fs.readFileSync(inputPath);
+  const pdfBuffer = fs.readFileSync(inputPath);
 
-  libre.convert(file, ".docx", undefined, (err, done) => {
+  // dùng filter "writer_pdf_import"
+  libre.convert(pdfBuffer, ".docx", "writer_pdf_import", (err, docxBuffer) => {
     if (err) {
       console.error("❌ PDF -> DOCX error:", err);
-      return res.status(500).json({ error: "Conversion failed" });
+      return res.status(500).json({ error: "PDF to DOCX failed" });
     }
 
-    fs.writeFileSync(outputPath, done);
-    const fileUrl = `https://backend.dantri24h.com/uploads/${outputFileName}`;
+    fs.writeFileSync(outputPath, docxBuffer);
 
-    res.json({ success: true, url: fileUrl, name: outputFileName });
+    const fileUrl = `https://backend.dantri24h.com/uploads/${outputFileName}`;
+    res.json({
+      success: true,
+      url: fileUrl,
+      name: outputFileName,
+    });
   });
 };
-
