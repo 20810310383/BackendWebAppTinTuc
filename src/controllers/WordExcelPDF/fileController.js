@@ -49,9 +49,52 @@ exports.wordToPdf = (req, res) => {
   convertWithLibre(req, res, req.file.path, ".pdf");
 };
 
-// PDF -> Word
+// PDF -> Word (workaround: PDF -> ODT -> DOCX)
 exports.pdfToWord = (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
   console.log("📥 PDF input:", req.file.path);
-  convertWithLibre(req, res, req.file.path, ".docx");
+
+  const inputPath = req.file.path;
+  const odtPath = inputPath.replace(/\.pdf$/, ".odt");
+  const outputFileName = Date.now() + ".docx";
+  const outputPath = path.resolve(__dirname, "../../public/uploads", outputFileName);
+
+  const pdfBuffer = fs.readFileSync(inputPath);
+
+  // Step 1: PDF -> ODT
+  libre.convert(pdfBuffer, ".odt", undefined, (err, odtBuffer) => {
+    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); // xoá file gốc
+    if (err) {
+      console.error("❌ PDF -> ODT error:", err);
+      return res.status(500).json({ error: "PDF to ODT failed" });
+    }
+
+    fs.writeFileSync(odtPath, odtBuffer);
+
+    // Step 2: ODT -> DOCX
+    const odtFile = fs.readFileSync(odtPath);
+    libre.convert(odtFile, ".docx", undefined, (err2, docxBuffer) => {
+      try {
+        if (fs.existsSync(odtPath)) fs.unlinkSync(odtPath); // xoá file trung gian
+      } catch (e) {
+        console.warn("⚠️ Cannot remove ODT file:", e.message);
+      }
+
+      if (err2) {
+        console.error("❌ ODT -> DOCX error:", err2);
+        return res.status(500).json({ error: "ODT to DOCX failed" });
+      }
+
+      fs.writeFileSync(outputPath, docxBuffer);
+
+      // Trả URL cho client
+      const fileUrl = `https://backend.dantri24h.com/uploads/${outputFileName}`;
+      res.json({
+        success: true,
+        url: fileUrl,
+        name: outputFileName,
+      });
+    });
+  });
 };
