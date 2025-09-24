@@ -162,7 +162,15 @@ module.exports = {
 
             // ===== query + phân trang (tuỳ chọn) =====
             const pageNum = Math.max(parseInt(page) || 1, 1);
-            const limitNum = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+            let limitNum;
+
+            if (limit) {
+            // Nếu có truyền limit → parse và kẹp 1 - 100
+            limitNum = Math.min(Math.max(parseInt(limit), 1), 100);
+            } else {
+            // Nếu không truyền → mặc định 99999
+            limitNum = 99999;
+            }
 
             const [items, total] = await Promise.all([
             BaiViet.find(filter)
