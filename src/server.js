@@ -37,6 +37,7 @@ const allowedOrigins = [
     'https://ktquiz.com'   
 ];
 const cookieParser = require('cookie-parser');
+const multer = require('multer');
 app.use(cookieParser());
 
 
