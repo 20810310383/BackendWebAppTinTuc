@@ -16,6 +16,7 @@ const shortUrlRoutes  = require('./routes/shortUrlRoutes');
 const auth_Routes = require('./routes/auth.routes');
 const thongBaoRoutes  = require('./routes/thongBaoRoutes');
 const fileRouter  = require('./routes/fileRouter');
+const findOrCreate  = require('./routes/findOrCreate');
 
 const cors = require('cors');
 const path = require('path');
@@ -83,6 +84,7 @@ const routes = [
     { path: '/api/url', router: shortUrlRoutes  },
     { path: '/api/thongbao', router: thongBaoRoutes  },
     { path: '/api/convert', router: fileRouter  },
+    { path: '/api/nguoi-dung', router: findOrCreate  },
 ];
   
 routes.forEach(route => app.use(route.path, route.router));
@@ -108,6 +110,6 @@ app.use((err, req, res, next) => {
 //   cleanUploads();
 // });
 
-app.listen(port, () => {
+app.listen(port, "0.0.0.0" ,() => {
     console.log("backend nodejs is running on the port:", port, `\n http://localhost:${port}`);
 });
