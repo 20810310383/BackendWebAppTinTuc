@@ -3,12 +3,6 @@ const { default: axios } = require("axios");
 const fs = require("fs");
 const path = require("path");
 const Tesseract = require("tesseract.js");
-const OpenAI = require("openai");
-
-// Tạo client OpenAI với API Key từ .env
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 // ⚡ OCR: convert ảnh ra text
 const imageToText = async (req, res) => {
@@ -32,58 +26,7 @@ const imageToText = async (req, res) => {
   }
 };
 
-// ⚡ 1. AI giải đề
-const solveByAI1 = async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "No image uploaded" });
-
-    // OCR: chuyển ảnh → text
-    const { data: { text } } = await Tesseract.recognize(req.file.path, "eng+vie");
-
-    const cleanText = text.trim();
-
-    // Gọi OpenAI GPT để giải đề
-    const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `Bạn là một trợ lý học tập thông minh, có khả năng giải và giải thích chi tiết các bài tập thuộc nhiều môn học như Toán, Vật lý, Hóa học, Sinh học, Ngữ văn, Lịch sử, Địa lý, Tiếng Anh và các môn khác.
-
-        Nhiệm vụ của bạn:
-        - Đưa ra lời giải rõ ràng, dễ hiểu.
-        - Với môn tự nhiên (Toán, Lý, Hóa, Sinh): hãy giải từng bước, ghi chú công thức và kết quả cuối.
-        - Tuyệt đối KHÔNG dùng ký hiệu LaTeX (\\frac, \\cdot, \\sqrt...). Thay vào đó hãy viết công thức bằng chữ hoặc phép tính thông thường (ví dụ: 7x + 8.9 * (124 - x) = ...).
-        - Với môn xã hội (Văn, Sử, Địa): hãy phân tích, tóm tắt và đưa ra câu trả lời súc tích nhưng đầy đủ ý.
-        - Với tiếng Anh: có thể dịch, giải thích ngữ pháp và đưa ví dụ minh họa.
-
-        Luôn trả lời bằng tiếng Việt, trình bày khoa học, gọn gàng, dễ đọc và chính xác cho học sinh Việt Nam.`,
-        },
-        {
-          role: "user",
-          content: cleanText, // chính là đề bài OCR được
-        },
-      ],
-      max_tokens: 1200,
-    });
-
-
-    const solution = response.choices[0].message.content;
-
-    // Xoá file tạm sau khi xử lý
-    fs.unlinkSync(req.file.path);
-
-    return res.json({
-      mode: "AI",
-      input: cleanText,
-      solution,
-    });
-  } catch (err) {
-    console.error("❌ AI Solve error:", err);
-    return res.status(500).json({ error: "AI Solve failed" });
-  }
-};
-
+// ⚡ 1. Google Gemini AI giải đề
 const solveByAI = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
@@ -152,9 +95,9 @@ const solveByAI = async (req, res) => {
     const userPrompt = `Hãy giải bài tập sau đây một cách chi tiết, chính xác và thông minh nhất:\n\n${cleanText}\n\nHãy tuân thủ hoàn toàn các quy tắc trên và trình bày bằng TIẾNG VIỆT nhé.`;
 
     let solution = "";
-    let modelName = "gemini";
+    let modelUsed = "";
 
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
 
     if (!geminiKey || geminiKey === "your_gemini_api_key_here") {
       return res.status(400).json({
@@ -162,19 +105,17 @@ const solveByAI = async (req, res) => {
       });
     }
 
-    // 🚀 Danh sách model Google Gemini AI (Miễn phí 100%)
+    // 🚀 Danh sách model Google Gemini AI chính thức
     const modelsToTry = [
       { model: "gemini-2.0-flash", version: "v1beta" },
       { model: "gemini-1.5-flash", version: "v1beta" },
-      { model: "gemini-1.5-flash-latest", version: "v1beta" },
+      { model: "gemini-1.5-flash-8b", version: "v1beta" },
       { model: "gemini-1.5-pro", version: "v1beta" },
-      { model: "gemini-pro", version: "v1" },
-      { model: "gemini-pro", version: "v1beta" },
+      { model: "gemini-2.0-flash-lite-preview-02-05", version: "v1beta" },
     ];
 
     const fullPrompt = `${systemPrompt}\n\n==============================\nĐỀ BÀI BẠN CẦN GIẢI:\n${userPrompt}`;
-
-    let lastError = "";
+    let lastGeminiError = "";
 
     for (const m of modelsToTry) {
       try {
@@ -201,13 +142,13 @@ const solveByAI = async (req, res) => {
         const resultText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (resultText && resultText.trim().length > 0) {
           solution = resultText.trim();
-          modelName = m.model;
+          modelUsed = `Google Gemini (${m.model})`;
           console.log(`✅ Google Gemini [${m.model}] đã giải xong bài tập!`);
           break;
         }
       } catch (geminiErr) {
-        lastError = geminiErr.response?.data?.error?.message || geminiErr.message;
-        console.log(`⚠️ Gemini [${m.model}] thông báo:`, lastError);
+        lastGeminiError = geminiErr.response?.data?.error?.message || geminiErr.message;
+        console.log(`⚠️ Gemini [${m.model}] thông báo:`, lastGeminiError);
       }
     }
 
@@ -220,16 +161,16 @@ const solveByAI = async (req, res) => {
 
     if (!solution) {
       return res.status(500).json({
-        error: `Google Gemini không thể phản hồi: ${lastError || "Vui lòng kiểm tra lại API Key"}. Đảm bảo GEMINI_API_KEY hợp lệ bắt đầu bằng AIzaSy...`,
+        error: `Google Gemini không thể phản hồi: ${lastGeminiError || "Vui lòng kiểm tra lại API Key"}. Đảm bảo GEMINI_API_KEY hợp lệ bắt đầu bằng AIzaSy...`,
       });
     }
 
     return res.json({
-      mode: "Google Gemini AI",
+      mode: modelUsed,
       input: cleanText,
       solution,
       metadata: {
-        model: modelName,
+        model: modelUsed,
         processingTime: Date.now(),
       },
     });
