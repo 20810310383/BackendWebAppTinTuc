@@ -56,7 +56,7 @@
     "pm2": "^5.4.3",
     "rootpath": "^0.1.2",
     "sanitize-filename": "^1.6.3",
-    "sharp": "^0.34.3",
+    "sharp": "^0.34.5",
     "socket.io": "^4.8.1",
     "tesseract.js": "^6.0.1",
     "vnpay": "^1.6.1",
