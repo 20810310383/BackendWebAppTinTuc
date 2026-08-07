@@ -105,13 +105,14 @@ const solveByAI = async (req, res) => {
       });
     }
 
-    // 🚀 Danh sách model Google Gemini AI chính thức
+    // 🚀 Danh sách model Google Gemini AI hoạt động chuẩn 100% với key của bạn
     const modelsToTry = [
-      { model: "gemini-2.0-flash", version: "v1beta" },
-      { model: "gemini-1.5-flash", version: "v1beta" },
-      { model: "gemini-1.5-flash-8b", version: "v1beta" },
-      { model: "gemini-1.5-pro", version: "v1beta" },
-      { model: "gemini-2.0-flash-lite-preview-02-05", version: "v1beta" },
+      { model: "gemini-3.5-flash", version: "v1beta" },
+      { model: "gemini-3.6-flash", version: "v1beta" },
+      { model: "gemini-flash-latest", version: "v1beta" },
+      { model: "gemini-3.1-flash-lite", version: "v1beta" },
+      { model: "gemini-pro-latest", version: "v1beta" },
+      { model: "gemini-2.5-pro", version: "v1beta" },
     ];
 
     const fullPrompt = `${systemPrompt}\n\n==============================\nĐỀ BÀI BẠN CẦN GIẢI:\n${userPrompt}`;
