@@ -154,74 +154,60 @@ const solveByAI = async (req, res) => {
     let solution = "";
     let modelName = "gemini";
 
-    const geminiKey = process.env.GEMINI_API_KEY
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_KEY;
 
-    // 🚀 1. Ưu tiên sử dụng Google Gemini AI (Miễn phí 100%)
-    if (geminiKey && geminiKey !== "your_gemini_api_key_here") {
-      const modelsToTry = [
-        { model: "gemini-2.0-flash", version: "v1beta" },
-        { model: "gemini-1.5-flash", version: "v1beta" },
-        { model: "gemini-1.5-flash-latest", version: "v1beta" },
-        { model: "gemini-1.5-pro", version: "v1beta" },
-        { model: "gemini-pro", version: "v1" },
-        { model: "gemini-pro", version: "v1beta" },
-      ];
-
-      const fullPrompt = `${systemPrompt}\n\n==============================\nĐỀ BÀI BẠN CẦN GIẢI:\n${userPrompt}`;
-
-      for (const m of modelsToTry) {
-        try {
-          console.log(`⚡ Đang thử Google Gemini model: ${m.model} (${m.version})...`);
-          const geminiUrl = `https://generativelanguage.googleapis.com/${m.version}/models/${m.model}:generateContent?key=${geminiKey}`;
-
-          const geminiRes = await axios.post(
-            geminiUrl,
-            {
-              contents: [
-                {
-                  role: "user",
-                  parts: [{ text: fullPrompt }],
-                },
-              ],
-              generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 2048,
-              },
-            },
-            { timeout: 25000 }
-          );
-
-          const resultText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (resultText && resultText.trim().length > 0) {
-            solution = resultText.trim();
-            modelName = m.model;
-            console.log(`✅ Thành công với model ${m.model}!`);
-            break;
-          }
-        } catch (geminiErr) {
-          const errMsg = geminiErr.response?.data?.error?.message || geminiErr.message;
-          console.log(`⚠️ Model ${m.model} lỗi:`, errMsg);
-        }
-      }
+    if (!geminiKey || geminiKey === "your_gemini_api_key_here") {
+      return res.status(400).json({
+        error: "Chưa cấu hình GEMINI_API_KEY trong file .env! Vui lòng lấy key miễn phí từ https://aistudio.google.com/app/apikey (bắt đầu bằng AIzaSy...)",
+      });
     }
 
-    // 🔄 2. Fallback sang OpenAI nếu Gemini chưa có kết quả
-    if (!solution && process.env.OPENAI_API_KEY) {
+    // 🚀 Danh sách model Google Gemini AI (Miễn phí 100%)
+    const modelsToTry = [
+      { model: "gemini-2.0-flash", version: "v1beta" },
+      { model: "gemini-1.5-flash", version: "v1beta" },
+      { model: "gemini-1.5-flash-latest", version: "v1beta" },
+      { model: "gemini-1.5-pro", version: "v1beta" },
+      { model: "gemini-pro", version: "v1" },
+      { model: "gemini-pro", version: "v1beta" },
+    ];
+
+    const fullPrompt = `${systemPrompt}\n\n==============================\nĐỀ BÀI BẠN CẦN GIẢI:\n${userPrompt}`;
+
+    let lastError = "";
+
+    for (const m of modelsToTry) {
       try {
-        console.log("⚡ Fallback gọi OpenAI GPT...");
-        const response = await client.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          max_tokens: 2000,
-          temperature: 0.7,
-        });
-        solution = response.choices[0].message.content;
-        modelName = "gpt-4o-mini";
-      } catch (openAiErr) {
-        console.error("⚠️ OpenAI API fallback error:", openAiErr.message);
+        console.log(`⚡ Đang gọi Google Gemini (${m.model} - ${m.version})...`);
+        const geminiUrl = `https://generativelanguage.googleapis.com/${m.version}/models/${m.model}:generateContent?key=${geminiKey}`;
+
+        const geminiRes = await axios.post(
+          geminiUrl,
+          {
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: fullPrompt }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048,
+            },
+          },
+          { timeout: 25000 }
+        );
+
+        const resultText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (resultText && resultText.trim().length > 0) {
+          solution = resultText.trim();
+          modelName = m.model;
+          console.log(`✅ Google Gemini [${m.model}] đã giải xong bài tập!`);
+          break;
+        }
+      } catch (geminiErr) {
+        lastError = geminiErr.response?.data?.error?.message || geminiErr.message;
+        console.log(`⚠️ Gemini [${m.model}] thông báo:`, lastError);
       }
     }
 
@@ -229,17 +215,17 @@ const solveByAI = async (req, res) => {
     if (req.file?.path) {
       try {
         fs.unlinkSync(req.file.path);
-      } catch (e) { }
+      } catch (e) {}
     }
 
     if (!solution) {
       return res.status(500).json({
-        error: "Không thể nhận phản hồi từ AI. Vui lòng kiểm tra lại GEMINI_API_KEY trong file .env!",
+        error: `Google Gemini không thể phản hồi: ${lastError || "Vui lòng kiểm tra lại API Key"}. Đảm bảo GEMINI_API_KEY hợp lệ bắt đầu bằng AIzaSy...`,
       });
     }
 
     return res.json({
-      mode: "AI",
+      mode: "Google Gemini AI",
       input: cleanText,
       solution,
       metadata: {
@@ -248,7 +234,7 @@ const solveByAI = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("❌ AI Solve error:", err);
+    console.error("❌ Google Gemini Solve error:", err);
 
     // Xóa file nếu có lỗi
     if (req.file?.path) {
@@ -260,7 +246,7 @@ const solveByAI = async (req, res) => {
     }
 
     return res.status(500).json({
-      error: "Xử lý giải bài bằng AI thất bại",
+      error: "Xử lý giải bài bằng Google Gemini thất bại",
       details: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
