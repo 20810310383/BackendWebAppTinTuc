@@ -152,39 +152,55 @@ const solveByAI = async (req, res) => {
     const userPrompt = `Hãy giải bài tập sau đây một cách chi tiết, chính xác và thông minh nhất:\n\n${cleanText}\n\nHãy tuân thủ hoàn toàn các quy tắc trên và trình bày bằng TIẾNG VIỆT nhé.`;
 
     let solution = "";
-    let modelName = "gemini-1.5-flash";
+    let modelName = "gemini";
 
     const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_KEY || process.env.GOOGLE_API_KEY;
 
-    // 🚀 1. Ưu tiên sử dụng Google Gemini 1.5 Flash (Miễn phí 100%)
-    if (geminiKey && geminiKey !== "your_google_gemini_api_key") {
-      try {
-        console.log("⚡ Đang gọi Google Gemini 1.5 Flash API...");
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
-        const geminiRes = await axios.post(
-          geminiUrl,
-          {
-            system_instruction: {
-              parts: [{ text: systemPrompt }],
-            },
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: userPrompt }],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 2048,
-            },
-          },
-          { timeout: 30000 }
-        );
+    // 🚀 1. Ưu tiên sử dụng Google Gemini AI (Miễn phí 100%)
+    if (geminiKey && geminiKey !== "your_gemini_api_key_here") {
+      const modelsToTry = [
+        { model: "gemini-2.0-flash", version: "v1beta" },
+        { model: "gemini-1.5-flash", version: "v1beta" },
+        { model: "gemini-1.5-flash-latest", version: "v1beta" },
+        { model: "gemini-1.5-pro", version: "v1beta" },
+        { model: "gemini-pro", version: "v1" },
+        { model: "gemini-pro", version: "v1beta" },
+      ];
 
-        solution = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        modelName = "gemini-1.5-flash";
-      } catch (geminiErr) {
-        console.error("⚠️ Gemini API error:", geminiErr.response?.data || geminiErr.message);
+      const fullPrompt = `${systemPrompt}\n\n==============================\nĐỀ BÀI BẠN CẦN GIẢI:\n${userPrompt}`;
+
+      for (const m of modelsToTry) {
+        try {
+          console.log(`⚡ Đang thử Google Gemini model: ${m.model} (${m.version})...`);
+          const geminiUrl = `https://generativelanguage.googleapis.com/${m.version}/models/${m.model}:generateContent?key=${geminiKey}`;
+          
+          const geminiRes = await axios.post(
+            geminiUrl,
+            {
+              contents: [
+                {
+                  role: "user",
+                  parts: [{ text: fullPrompt }],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 2048,
+              },
+            },
+            { timeout: 25000 }
+          );
+
+          const resultText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (resultText && resultText.trim().length > 0) {
+            solution = resultText.trim();
+            modelName = m.model;
+            console.log(`✅ Thành công với model ${m.model}!`);
+            break;
+          }
+        } catch (geminiErr) {
+          console.log(`⚠️ Model ${m.model} không khả dụng, đang thử model tiếp theo...`);
+        }
       }
     }
 
