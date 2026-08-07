@@ -26,6 +26,40 @@ const imageToText = async (req, res) => {
   }
 };
 
+// ⚡ Hàm format & dọn dẹp văn bản chuyên nghiệp (loại bỏ dấu *, làm đẹp giao diện)
+const cleanAndFormatResponse = (text) => {
+  if (!text) return "";
+
+  let cleaned = text
+    // 1. Xóa toàn bộ mã LaTeX thô nếu có
+    .replace(/\$\$\\text\{([^}]+)\}\$\$/g, "$1")
+    .replace(/\$\$([^$]+)\$\$/g, "$1")
+    .replace(/\$\\text\{([^}]+)\}\$/g, "$1")
+    .replace(/\$([^$]+)\$/g, "$1")
+    .replace(/\\text\{([^}]+)\}/g, "$1")
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1 / $2")
+    .replace(/\\sqrt\{([^}]+)\}/g, "√($1)")
+    .replace(/\\cdot/g, "×")
+    .replace(/\\Rightarrow/g, "=>")
+    .replace(/\\approx/g, "≈")
+
+    // 2. Chuyển đổi dấu **bold** thành chữ sạch (loại bỏ dấu sao)
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+
+    // 3. Chuyển gạch đầu dòng dấu * thành dấu chấm tròn đẹp mắt •
+    .replace(/^\s*\*\s+/gm, "• ")
+
+    // 4. Xóa các dấu sao lẻ tẻ còn sót
+    .replace(/\*/g, "")
+
+    // 5. Chuẩn hóa khoảng cách dòng
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return cleaned;
+};
+
 // ⚡ 1. Google Gemini AI giải đề
 const solveByAI = async (req, res) => {
   try {
@@ -35,38 +69,33 @@ const solveByAI = async (req, res) => {
     const { data: { text } } = await Tesseract.recognize(req.file.path, "eng+vie");
     const cleanText = text.trim();
 
-    const systemPrompt = `Bạn là trợ lý học tập AI thông minh, hỗ trợ TẤT CẢ CÁC MÔN HỌC (Toán, Vật lý, Hóa học, Sinh học, Ngữ văn, Lịch sử, Địa lý, Tiếng Anh, Tin học, GDCD...).
+    const systemPrompt = `Bạn là chuyên gia gia sư AI cao cấp, hỗ trợ TẤT CẢ CÁC MÔN HỌC (Toán, Lý, Hóa, Sinh, Văn, Sử, Địa, Tiếng Anh, Tin học, GDCD...).
 
-🎯 NGUYÊN TẮC QUAN TRỌNG:
-- **TÓM TẮT & GỢI Ý CÔNG THỨC**: Trình bày ngắn gọn, súc tích, trực diện, không dài dòng lê thê. Đưa ra hướng giải và công thức cốt lõi trước để người học nắm bắt nhanh.
-- **TUYỆT ĐỐI KHÔNG DÙNG MÃ LATEX THÔ**: Nghiêm cấm hoàn toàn ký hiệu như $$, $, \\text{}, \\frac{}, \\sqrt{}, \\cdot, \\Delta vì gây lỗi hiển thị trên điện thoại.
-  👉 Thay bằng ký hiệu thuần dễ đọc:
-  - Công thức: P = E = 13, N = Tổng hạt - P = 14
-  - Toán/Lý: x = (-b ± √Δ) / 2a, v = s / t, P = U * I
-  - Hóa học: n = m / M, Fe + 2HCl -> FeCl2 + H2
-  - Tiếng Anh: Cấu trúc: S + have/has + V3/ed (Hiện tại hoàn thành)
+🎯 NGUYÊN TẮC TRÌNH BÀY CHUYÊN NGHIỆP:
+- TUYỆT ĐỐI KHÔNG DÙNG DẤU HOA THỊ (*) HOẶC (**). Không dùng dấu sao để in đậm hay gạch đầu dòng (gây rối mắt).
+- Dùng dấu chấm tròn (•) hoặc số thứ tự (1, 2, 3) để liệt kê.
+- Dùng chữ IN HOA và icon sinh động để làm nổi bật tiêu đề.
+- TUYỆT ĐỐI KHÔNG DÙNG MÃ LATEX ($$, $, \\text{}, \\frac{}, \\sqrt{}). Hãy viết công thức thuần sạch, ví dụ: P = E = 13, N = 27 - 13 = 14, x = (-b ± √Δ) / 2a.
 
-📋 BỐ CỤC TRÌNH BÀY RÚT GỌN (NGẮN GỌN - DỄ HIỂU - ĐẦY ĐỦ Ý):
+📋 BỐ CỤC CHUẨN 4 MỤC NGẮN GỌN & ĐẸP MẮT:
 
-📌 1. Tóm tắt đề bài
-- Nêu nhanh dữ kiện đã cho & yêu cầu cần tìm.
+📌 1. TÓM TẮT ĐỀ BÀI
+• Dữ kiện đã cho: [Nêu ngắn gọn]
+• Yêu cầu cần tìm: [Nêu mục tiêu]
 
-💡 2. Gợi ý cách làm & Công thức then chốt
-- Nêu ngắn gọn phương pháp tư duy / bản chất câu hỏi.
-- Liệt kê các công thức hoặc quy tắc cốt lõi cần dùng.
+💡 2. GỢI Ý CÁCH LÀM & CÔNG THỨC THEN CHỐT
+• Phương pháp tư duy: [Gợi ý ngắn gọn 1-2 câu để học sinh hiểu hướng đi]
+• Công thức / Quy tắc cốt lõi: [Liệt kê công thức chính cần áp dụng]
 
-🚀 3. Hướng dẫn giải (Rút gọn)
-- Trình bày tóm tắt 2-3 bước chính để ra kết quả.
-- Với trắc nghiệm: Chỉ rõ tại sao chọn phương án đó (loại trừ phương án sai ngắn gọn).
+🚀 3. HƯỚNG DẪN GIẢI RÚT GỌN
+• Bước 1: [Thực hiện phép tính / lập luận chính]
+• Bước 2: [Rút ra kết quả]
+(Nếu là trắc nghiệm: Nêu lý do vì sao chọn đáp án này)
 
-🎯 4. Đáp án / Kết luận
-- 👉 **Đáp án:** [Kết quả cuối cùng / Phương án đúng]
+🎯 4. ĐÁP ÁN CUỐI CÙNG
+👉 ĐÁP ÁN: [Ghi rõ kết quả hoặc phương án A/B/C/D]`;
 
-✨ YÊU CẦU TRÌNH BÀY:
-- Dùng emoji sinh động (📌, 💡, 🚀, 🎯, ⚠️).
-- Cách dòng thoáng, in đậm từ khóa quan trọng, ngắn gọn súc tích dễ đọc trên điện thoại.`;
-
-    const userPrompt = `Đề bài cần giải:\n"""\n${cleanText}\n"""\n\nHãy tóm tắt đề, đưa ra công thức/quy tắc then chốt và hướng dẫn giải ngắn gọn, súc tích bằng TIẾNG VIỆT, KHÔNG dùng bất kỳ mã LaTeX nào!`;
+    const userPrompt = `Đề bài cần giải:\n"""\n${cleanText}\n"""\n\nHãy áp dụng đúng bố cục chuyên nghiệp ở trên, KHÔNG DÙNG BẤT KỲ DẤU SAO (*) NÀO, KHÔNG DÙNG LATEX, trình bày bằng TIẾNG VIỆT rõ ràng, súc tích!`;
 
     let solution = "";
     let modelUsed = "";
@@ -115,7 +144,7 @@ const solveByAI = async (req, res) => {
 
         const resultText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (resultText && resultText.trim().length > 0) {
-          solution = resultText.trim();
+          solution = cleanAndFormatResponse(resultText);
           modelUsed = `Google Gemini (${m.model})`;
           console.log(`✅ Google Gemini [${m.model}] đã giải xong bài tập!`);
           break;
