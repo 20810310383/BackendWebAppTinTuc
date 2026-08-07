@@ -92,13 +92,7 @@ const solveByAI = async (req, res) => {
     const { data: { text } } = await Tesseract.recognize(req.file.path, "eng+vie");
     const cleanText = text.trim();
 
-    // Gọi OpenAI GPT để giải đề
-    const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `Bạn là gia sư AI cao cấp, cực kỳ thông minh, chuyên nghiệp và có phương pháp sư phạm hàng đầu. Nhiệm vụ của bạn là giải quyết và giải thích các bài toán, câu hỏi, bài tập học thuật với độ chính xác tuyệt đối, tư duy logic sâu sắc và dễ hiểu nhất cho học sinh.
+    const systemPrompt = `Bạn là gia sư AI cao cấp, cực kỳ thông minh, chuyên nghiệp và có phương pháp sư phạm hàng đầu. Nhiệm vụ của bạn là giải quyết và giải thích các bài toán, câu hỏi, bài tập học thuật với độ chính xác tuyệt đối, tư duy logic sâu sắc và dễ hiểu nhất cho học sinh.
 
 🎯 NGUYÊN TẮC CỐT LÕI:
 - **LUÔN TRẢ LỜI BẰNG TIẾNG VIỆT** chuẩn mực, tự nhiên, truyền cảm hứng và dễ hiểu. (Ngoại trừ môn Tiếng Anh/Ngoại ngữ thì giải thích bằng Tiếng Việt và đưa ví dụ/đáp án bằng Tiếng Anh).
@@ -153,39 +147,92 @@ const solveByAI = async (req, res) => {
 - Không viết tắt khó hiểu hoặc trình bày rối mắt.
 
 ✨ XỬ LÝ TRƯỜNG HỢP ĐẶC BIỆT:
-- Nếu đề bài OCR bị mờ hoặc thiếu dữ liệu, hãy lịch sự nêu giả định hợp lý nhất và giải theo giả định đó.`,
-        },
-        {
-          role: "user",
-          content: `Hãy giải bài tập sau đây một cách chi tiết, chính xác và thông minh nhất:
+- Nếu đề bài OCR bị mờ hoặc thiếu dữ liệu, hãy lịch sự nêu giả định hợp lý nhất và giải theo giả định đó.`;
 
-${cleanText}
+    const userPrompt = `Hãy giải bài tập sau đây một cách chi tiết, chính xác và thông minh nhất:\n\n${cleanText}\n\nHãy tuân thủ hoàn toàn các quy tắc trên và trình bày bằng TIẾNG VIỆT nhé.`;
 
-Hãy tuân thủ hoàn toàn các quy tắc trên và trình bày bằng TIẾNG VIỆT nhé.`,
-        },
-      ],
-      max_tokens: 2000,
-      temperature: 0.7,
-    });
+    let solution = "";
+    let modelName = "gemini-1.5-flash";
 
-    const solution = response.choices[0].message.content;
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_KEY || process.env.GOOGLE_API_KEY;
+
+    // 🚀 1. Ưu tiên sử dụng Google Gemini 1.5 Flash (Miễn phí 100%)
+    if (geminiKey && geminiKey !== "your_google_gemini_api_key") {
+      try {
+        console.log("⚡ Đang gọi Google Gemini 1.5 Flash API...");
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+        const geminiRes = await axios.post(
+          geminiUrl,
+          {
+            system_instruction: {
+              parts: [{ text: systemPrompt }],
+            },
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: userPrompt }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048,
+            },
+          },
+          { timeout: 30000 }
+        );
+
+        solution = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        modelName = "gemini-1.5-flash";
+      } catch (geminiErr) {
+        console.error("⚠️ Gemini API error:", geminiErr.response?.data || geminiErr.message);
+      }
+    }
+
+    // 🔄 2. Fallback sang OpenAI nếu Gemini chưa có kết quả
+    if (!solution && process.env.OPENAI_API_KEY) {
+      try {
+        console.log("⚡ Fallback gọi OpenAI GPT...");
+        const response = await client.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          max_tokens: 2000,
+          temperature: 0.7,
+        });
+        solution = response.choices[0].message.content;
+        modelName = "gpt-4o-mini";
+      } catch (openAiErr) {
+        console.error("⚠️ OpenAI API fallback error:", openAiErr.message);
+      }
+    }
 
     // Xoá file tạm sau khi xử lý
-    fs.unlinkSync(req.file.path);
+    if (req.file?.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (e) {}
+    }
+
+    if (!solution) {
+      return res.status(500).json({
+        error: "Không thể nhận phản hồi từ AI. Vui lòng kiểm tra lại GEMINI_API_KEY trong file .env!",
+      });
+    }
 
     return res.json({
       mode: "AI",
       input: cleanText,
       solution,
       metadata: {
-        model: "gpt-4o-mini",
-        tokensUsed: response.usage.total_tokens,
+        model: modelName,
         processingTime: Date.now(),
-      }
+      },
     });
   } catch (err) {
     console.error("❌ AI Solve error:", err);
-    
+
     // Xóa file nếu có lỗi
     if (req.file?.path) {
       try {
@@ -194,10 +241,10 @@ Hãy tuân thủ hoàn toàn các quy tắc trên và trình bày bằng TIẾNG
         console.error("Failed to delete temp file:", unlinkErr);
       }
     }
-    
-    return res.status(500).json({ 
-      error: "AI Solve failed",
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+
+    return res.status(500).json({
+      error: "Xử lý giải bài bằng AI thất bại",
+      details: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 };
