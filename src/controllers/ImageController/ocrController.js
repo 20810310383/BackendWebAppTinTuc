@@ -44,11 +44,11 @@ const solveByAI1 = async (req, res) => {
 
     // Gọi OpenAI GPT để giải đề
     const response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-            {
-            role: "system",
-            content: `Bạn là một trợ lý học tập thông minh, có khả năng giải và giải thích chi tiết các bài tập thuộc nhiều môn học như Toán, Vật lý, Hóa học, Sinh học, Ngữ văn, Lịch sử, Địa lý, Tiếng Anh và các môn khác.
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Bạn là một trợ lý học tập thông minh, có khả năng giải và giải thích chi tiết các bài tập thuộc nhiều môn học như Toán, Vật lý, Hóa học, Sinh học, Ngữ văn, Lịch sử, Địa lý, Tiếng Anh và các môn khác.
 
         Nhiệm vụ của bạn:
         - Đưa ra lời giải rõ ràng, dễ hiểu.
@@ -58,13 +58,13 @@ const solveByAI1 = async (req, res) => {
         - Với tiếng Anh: có thể dịch, giải thích ngữ pháp và đưa ví dụ minh họa.
 
         Luôn trả lời bằng tiếng Việt, trình bày khoa học, gọn gàng, dễ đọc và chính xác cho học sinh Việt Nam.`,
-            },
-            {
-            role: "user",
-            content: cleanText, // chính là đề bài OCR được
-            },
-        ],
-        max_tokens: 1200,
+        },
+        {
+          role: "user",
+          content: cleanText, // chính là đề bài OCR được
+        },
+      ],
+      max_tokens: 1200,
     });
 
 
@@ -154,7 +154,7 @@ const solveByAI = async (req, res) => {
     let solution = "";
     let modelName = "gemini";
 
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_KEY || process.env.GOOGLE_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY
 
     // 🚀 1. Ưu tiên sử dụng Google Gemini AI (Miễn phí 100%)
     if (geminiKey && geminiKey !== "your_gemini_api_key_here") {
@@ -173,7 +173,7 @@ const solveByAI = async (req, res) => {
         try {
           console.log(`⚡ Đang thử Google Gemini model: ${m.model} (${m.version})...`);
           const geminiUrl = `https://generativelanguage.googleapis.com/${m.version}/models/${m.model}:generateContent?key=${geminiKey}`;
-          
+
           const geminiRes = await axios.post(
             geminiUrl,
             {
@@ -199,7 +199,8 @@ const solveByAI = async (req, res) => {
             break;
           }
         } catch (geminiErr) {
-          console.log(`⚠️ Model ${m.model} không khả dụng, đang thử model tiếp theo...`);
+          const errMsg = geminiErr.response?.data?.error?.message || geminiErr.message;
+          console.log(`⚠️ Model ${m.model} lỗi:`, errMsg);
         }
       }
     }
@@ -228,7 +229,7 @@ const solveByAI = async (req, res) => {
     if (req.file?.path) {
       try {
         fs.unlinkSync(req.file.path);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (!solution) {
@@ -270,10 +271,10 @@ const detectLanguage = (text) => {
   // Simple language detection
   const vietnameseChars = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
   const hasVietnamese = vietnameseChars.test(text);
-  
+
   const englishWords = text.match(/\b[a-z]+\b/gi) || [];
   const vietnameseWords = text.match(/\b[\p{L}]+\b/giu) || [];
-  
+
   if (hasVietnamese || vietnameseWords.length > englishWords.length) {
     return 'vi';
   }
@@ -286,12 +287,12 @@ const detectSubject = (text) => {
   const physicsKeywords = /vật lý|lực|năng lượng|chuyển động|physics|force|energy|velocity/i;
   const chemistryKeywords = /hóa học|phản ứng|mol|chemistry|reaction|element/i;
   const englishKeywords = /grammar|vocabulary|translate|tense|past|present/i;
-  
+
   if (mathKeywords.test(text)) return 'Mathematics';
   if (physicsKeywords.test(text)) return 'Physics';
   if (chemistryKeywords.test(text)) return 'Chemistry';
   if (englishKeywords.test(text)) return 'English';
-  
+
   return 'General';
 };
 
